@@ -90,7 +90,7 @@ func (r *RobotHub)Start(){
 	})
 	go r.wsConn.WsReadLoop()
 	go r.wsConn.WsWriteLoop()
-	go r.HeartBeat()
+	r.HeartBeat()
 }
 
 
