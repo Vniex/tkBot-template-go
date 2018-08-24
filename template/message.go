@@ -6,10 +6,11 @@ import (
 )
 
 const(
-	CmdType_HEARTBEAT = iota+1
-	CmdType_KILL
-	CmdType_PUSHDATA
-	CmdType_START
+	CmdType_HeartBeat = iota
+	CmdType_Kill
+	CmdType_PushData
+	CmdType_Start
+	CmdType_Register
 
 )
 
