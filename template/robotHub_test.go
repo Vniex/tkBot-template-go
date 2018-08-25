@@ -11,11 +11,12 @@ func TestNewRobotHub(t *testing.T) {
 	go robotHub.Start()
 	para:=&Parameters{
 		"test robot",
+		"test register",
 		5,
 	}
 	kill_chan:=make(chan byte)
 	go robotHub.StartRobot(para,kill_chan)
-	time.Sleep(40*time.Second)
+	time.Sleep(60*time.Second)
 	kill_chan<-0
-	time.Sleep(20*time.Second)
+	time.Sleep(60*time.Second)
 }

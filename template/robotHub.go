@@ -20,7 +20,7 @@ type RobotHub struct {
 	websocketServer string
 	heartBeatInterval int
 	wsConn *WsConnection
-	closeRobot map[string] chan byte
+	robots map[string] chan byte
 	Para *strategy.Parameters
 }
 
@@ -54,8 +54,8 @@ func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
 			//r.wsConn.WsWrite(NewRobotMsg())
 		}
 		for _,robot :=range robot_list{
-			r.closeRobot[robot]<-0;
-			delete(r.closeRobot, robot)
+			r.robots[robot]<-0;
+			delete(r.robots, robot)
 		}
 		//Start single robots
 	}else if msg.Cmd==CmdType_Start{
@@ -67,7 +67,7 @@ func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
 			//r.wsConn.WsWrite(NewRobotMsg())
 		}
 		robot_kill_chan:=make(chan byte)
-		r.closeRobot[para.RobotName]=robot_kill_chan
+		r.robots[para.RobotName]=robot_kill_chan
 		go r.StartRobot(para,robot_kill_chan)
 
 	}
@@ -77,8 +77,8 @@ func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
 func (r *RobotHub) HeartBeat() {
 	for{
 		time.Sleep(time.Duration(r.heartBeatInterval)*time.Second)
-		robots := make([]string, 0, len(r.closeRobot))
-		for k := range r.closeRobot {
+		robots := make([]string, 0, len(r.robots))
+		for k := range r.robots {
 			robots = append(robots, k)
 		}
 		data,_:=json.Marshal(&robots)
@@ -121,10 +121,15 @@ func (r *RobotHub)ProcRobotStderr(stderr io.ReadCloser){
 
 }
 func (r *RobotHub)StartRobot(parameters *strategy.Parameters,kill_chan chan byte){
+	if r.robots[parameters.RobotName]!=nil{ //todo 已运行同名robot
+		return
+	}
+	r.robots[parameters.RobotName]=make(chan byte)
 	log.Println("start robot",parameters)
+
 	p,_:=json.Marshal(parameters)
 
-	cmd := exec.Command("./main", "-mode=robot","-para="+string(p))
+	cmd := exec.Command("../main", "-mode=robot","-para="+string(p))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatalf("get cmd stdout failed with %s\n", err)
@@ -154,6 +159,7 @@ func (r *RobotHub)StartRobot(parameters *strategy.Parameters,kill_chan chan byte
 			if err:=cmd.Process.Kill();err!=nil{
 				log.Println(err)
 			}
+			delete(r.robots, parameters.RobotName)
 			return
 
 		}

@@ -10,9 +10,10 @@ import (
 const RobotHubName="托管者测试" //策略托管者名称
 const ServerIP="127.0.0.1"   //服务器ip
 const ServerPort="8888"		//服务器端口
-const ServerURL="/api/v1/ws" //服务器ws路径
+const ServerURL="/api/v1/ws/robot" //服务器ws路径
 const WebsocketServer = "ws://"+ServerIP+":"+ServerPort+ServerURL  //组合URL路径
 const Heartbeat_Interval=2   //心跳包间隔
+const StrategyDesp="策略注册测试" //策略描述
 
 type Robot struct {
 	Para *Parameters
@@ -21,6 +22,9 @@ type Robot struct {
 //策略自定义参数
 type Parameters struct{
 	RobotName string `json:"robot_name"`  //用以识别机器人，不可修改
+	Desp string `json:"desp"`  //策略描述
+
+	//策略运行参数
 	Interval int `json:"interval"`
 }
 
@@ -28,6 +32,7 @@ type Parameters struct{
 func NewDefaultParameters() *Parameters{
 	return &Parameters{
 		"robot",
+		StrategyDesp,
 		5,
 	}
 }
