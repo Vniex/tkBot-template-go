@@ -10,8 +10,9 @@ func TestNewRobotHub(t *testing.T) {
 	robotHub:=NewRobotHub(RobotHubName,WebsocketServer,Heartbeat_Interval)
 	go robotHub.Start()
 	para:=&Parameters{
-		"test robot",
-		"test register",
+		"sider",
+		"爬取交易所公告",
+		5,
 		5,
 	}
 	kill_chan:=make(chan byte)

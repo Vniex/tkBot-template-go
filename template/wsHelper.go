@@ -142,7 +142,10 @@ func (wsConn *WsConnection)WsClose() {
 		wsConn.isClosed = true
 		close(wsConn.closeChan)
 	}
+
 }
+
+
 
 func clientClose(){
 	fmt.Println("already close...")

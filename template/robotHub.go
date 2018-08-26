@@ -27,7 +27,7 @@ type RobotHub struct {
 
 
 func NewRobotHub(name,websocketServer string,interval int) *RobotHub{
-	conn, _, err := websocket.DefaultDialer.Dial(websocketServer, nil)
+	conn, _, err := websocket.DefaultDialer.Dial(websocketServer+"?client_name="+name, nil)
 	if err != nil {
 		log.Printf("Fail to dial: %v", err)
 		return nil
@@ -44,6 +44,7 @@ func NewRobotHub(name,websocketServer string,interval int) *RobotHub{
 
 
 func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
+	log.Println("receive",msg)
 	// Kill some robots
 	if msg.Cmd==CmdType_Kill{
 		var robot_list []string
@@ -54,8 +55,10 @@ func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
 			//r.wsConn.WsWrite(NewRobotMsg())
 		}
 		for _,robot :=range robot_list{
-			r.robots[robot]<-0;
+			close(r.robots[robot])
+			log.Println(r.robots)
 			delete(r.robots, robot)
+			log.Println(r.robots)
 		}
 		//Start single robots
 	}else if msg.Cmd==CmdType_Start{
@@ -65,9 +68,9 @@ func (r *RobotHub)ProcMsg(msg *RobotHubMsg){
 		if err!=nil{
 			log.Println(err)
 			//r.wsConn.WsWrite(NewRobotMsg())
+			return
 		}
 		robot_kill_chan:=make(chan byte)
-		r.robots[para.RobotName]=robot_kill_chan
 		go r.StartRobot(para,robot_kill_chan)
 
 	}
@@ -87,10 +90,12 @@ func (r *RobotHub) HeartBeat() {
 		if err := r.wsConn.WsWrite(msg); err != nil {
 			fmt.Println("heartbeat fail")
 			r.wsConn.WsClose()
-			break
+			goto RETRY
 		}
 	}
-
+RETRY:
+	r.Retry()
+	r.Start()
 
 }
 
@@ -122,14 +127,16 @@ func (r *RobotHub)ProcRobotStderr(stderr io.ReadCloser){
 }
 func (r *RobotHub)StartRobot(parameters *strategy.Parameters,kill_chan chan byte){
 	if r.robots[parameters.RobotName]!=nil{ //todo 已运行同名robot
+	log.Println("已运行")
 		return
 	}
+	r.robots[parameters.RobotName]=kill_chan
 	r.robots[parameters.RobotName]=make(chan byte)
 	log.Println("start robot",parameters)
 
 	p,_:=json.Marshal(parameters)
 
-	cmd := exec.Command("../main", "-mode=robot","-para="+string(p))
+	cmd := exec.Command("./main", "-mode=robot","-para="+string(p))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatalf("get cmd stdout failed with %s\n", err)
@@ -169,9 +176,10 @@ func (r *RobotHub)StartRobot(parameters *strategy.Parameters,kill_chan chan byte
 }
 func (r *RobotHub)Start(){
 	r.Register()
-	go r.wsConn.ProcLoop(func(msg *RobotHubMsg) {
-		log.Printf("receive %v\n",msg)
-	})
+	//go r.wsConn.ProcLoop(func(msg *RobotHubMsg) {
+	//	log.Printf("receive %v\n",msg)
+	//})
+	go r.wsConn.ProcLoop(r.ProcMsg)
 	go r.wsConn.WsReadLoop()
 	go r.wsConn.WsWriteLoop()
 	r.HeartBeat()
@@ -179,6 +187,19 @@ func (r *RobotHub)Start(){
 
 
 
+func (r *RobotHub)Retry(){
 
+GET_CONN:
+	conn, _, err := websocket.DefaultDialer.Dial(r.websocketServer+"?client_name="+r.RobotHubName, nil)
+	if err != nil {
+		log.Printf("Fail to dial: %v", err)
+		time.Sleep(5*time.Second)
+		goto GET_CONN
+	}
+	log.Println("retry success!!!")
+	r.wsConn.wsSocket=conn
+	r.wsConn.closeChan=make(chan byte)
+	r.wsConn.isClosed=false
+}
 
 
